@@ -1,6 +1,9 @@
 #!/usr/bin/env bash
 
 cat <<EOF
+---
 default_process_types:
-  web: postgrest
+  web: /app/bin/postgrest
+config_vars:
+  PATH: /app/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 EOF
