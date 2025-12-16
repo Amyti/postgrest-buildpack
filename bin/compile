@@ -1,19 +1,27 @@
 #!/usr/bin/env bash
-set -e
+set -euo pipefail
 
 BUILD_DIR="$1"
 CACHE_DIR="$2"
+ENV_DIR="${3:-}"
 
 POSTGREST_VERSION="${POSTGREST_VERSION:-10.1.2}"
 POSTGREST_URL="https://github.com/PostgREST/postgrest/releases/download/v${POSTGREST_VERSION}/postgrest-v${POSTGREST_VERSION}-linux-static-x64.tar.xz"
 
 echo "-----> Installing PostgREST v${POSTGREST_VERSION}"
+echo "       ${POSTGREST_URL}"
 
 mkdir -p "${BUILD_DIR}/bin"
 
-curl -fsSL "${POSTGREST_URL}" \
-  | tar -xJ -C "${BUILD_DIR}/bin"
+TMP_ARCHIVE="$(mktemp)"
+if ! curl -fSL "${POSTGREST_URL}" -o "${TMP_ARCHIVE}"; then
+  echo "!! Failed to download PostgREST archive (check version / asset name)"
+  exit 1
+fi
+
+tar -xJ -C "${BUILD_DIR}/bin" -f "${TMP_ARCHIVE}"
+rm -f "${TMP_ARCHIVE}"
 
 chmod +x "${BUILD_DIR}/bin/postgrest"
 
-echo "-----> PostgREST installed"
+echo "-----> PostgREST installed at ${BUILD_DIR}/bin/postgrest"
