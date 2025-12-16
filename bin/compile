@@ -1,0 +1,19 @@
+#!/usr/bin/env bash
+set -e
+
+BUILD_DIR="$1"
+CACHE_DIR="$2"
+
+POSTGREST_VERSION="${POSTGREST_VERSION:-10.1.2}"
+POSTGREST_URL="https://github.com/PostgREST/postgrest/releases/download/v${POSTGREST_VERSION}/postgrest-v${POSTGREST_VERSION}-linux-static-x64.tar.xz"
+
+echo "-----> Installing PostgREST v${POSTGREST_VERSION}"
+
+mkdir -p "${BUILD_DIR}/bin"
+
+curl -fsSL "${POSTGREST_URL}" \
+  | tar -xJ -C "${BUILD_DIR}/bin"
+
+chmod +x "${BUILD_DIR}/bin/postgrest"
+
+echo "-----> PostgREST installed"
