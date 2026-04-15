@@ -28,8 +28,10 @@ Scalingo automatically creates a PostgreSQL user when you add the addon. Retriev
 
 ```bash
 scalingo --app my-postgrest-api env | grep SCALINGO_POSTGRESQL_URL
-# postgres://my_app_4242:password@host:port/my_app_4242
-#             ^^^^^^^^^^^^ this is your PostgreSQL username
+
+#Output
+postgres://my_app_4242:password@host:port/my_app_4242
+#             ^^^^^ this is your PostgreSQL username
 ```
 
 ### 5. Configure Environment Variables
@@ -110,7 +112,7 @@ scalingo --app my-app env-set PGRST_SERVER_PORT='$PORT'
 
 #### `PGRST_JWT_SECRET`
 
-Used to verify JWT tokens issued by an external authentication provider ([Keycloak](https://scalingo.com/blog/guide-to-deploy-keycloak-on-scalingo),...).
+is the secret key PostgREST uses to verify and decode JWT tokens for authenticating API requests. ([Keycloak](https://scalingo.com/blog/guide-to-deploy-keycloak-on-scalingo),...).
 
 **How it works:**
 
@@ -149,88 +151,119 @@ Check [PostgREST releases](https://github.com/PostgREST/postgrest/releases) for 
 
 ---
 
-## Quick Example
+## End-to-End Example
 
-Connect to your database via the Scalingo console (replace `my_app_4242` with your actual user):
+This walkthrough assumes your app is deployed and running at `https://my-postgrest-api.osc-fr1.scalingo.io`. Replace all occurrences of `my_app_4242` with your actual Scalingo PostgreSQL username.
+
+### Step 1 — Create a table with Row Level Security
+
+Open a console on your Scalingo database:
 
 ```bash
 scalingo --app my-postgrest-api pgsql-console
 ```
 
+Create a `todos` table where each row belongs to a user, and enable RLS so that each user only sees their own data:
+
 ```sql
 CREATE TABLE todos (
-  id    SERIAL PRIMARY KEY,
-  task  TEXT NOT NULL,
-  done  BOOLEAN DEFAULT false
+  id      SERIAL PRIMARY KEY,
+  user_id TEXT    NOT NULL,
+  task    TEXT    NOT NULL,
+  done    BOOLEAN DEFAULT false
 );
 
-INSERT INTO todos (task, done) VALUES
-  ('Buy groceries', false),
-  ('Deploy PostgREST', true);
+-- Enable Row Level Security
+ALTER TABLE todos ENABLE ROW LEVEL SECURITY;
+
+-- Each user can only read their own rows
+-- PostgREST exposes the JWT claims via request.jwt.claims
+CREATE POLICY todos_isolation ON todos
+  USING (user_id = current_setting('request.jwt.claims', true)::json->>'sub');
+
+-- Insert data for two different users
+INSERT INTO todos (user_id, task, done) VALUES
+  ('alice', 'Buy groceries',    false),
+  ('alice', 'Read the docs',    false),
+  ('bob',   'Deploy PostgREST', true),
+  ('bob',   'Write tests',      false);
 ```
 
-> The Scalingo user already has full access to the schema - no `GRANT` needed.
+### Step 2 — Anonymous request (no JWT)
 
-**Get all todos:**
+Without a token, `request.jwt.claims` is empty — the RLS policy filters out all rows:
 
 ```bash
 curl https://my-postgrest-api.osc-fr1.scalingo.io/todos
 ```
 
 ```json
-[
-  { "id": 1, "task": "Buy groceries", "done": false },
-  { "id": 2, "task": "Deploy PostgREST", "done": true }
-]
+[]
 ```
 
-**Filter - only incomplete todos:**
+### Step 3 — Authenticated requests (with JWT)
+
+In production, the JWT is issued by your auth provider ([Keycloak](https://scalingo.com/blog/guide-to-deploy-keycloak-on-scalingo), etc.) after the user logs in. The `sub` claim identifies the user.
+
+For testing, generate a token locally (requires `pyjwt`):
 
 ```bash
-curl 'https://my-postgrest-api.osc-fr1.scalingo.io/todos?done=eq.false'
+pip install pyjwt
+
+python3 - <<'EOF'
+import jwt
+
+# Token for alice
+print(jwt.encode(
+    {"role": "my_app_4242", "sub": "alice", "exp": 9999999999},
+    "super-secret-jwt-key-at-least-32chars",
+    algorithm="HS256"
+))
+
+# Token for bob
+print(jwt.encode(
+    {"role": "my_app_4242", "sub": "bob", "exp": 9999999999},
+    "super-secret-jwt-key-at-least-32chars",
+    algorithm="HS256"
+))
+EOF
 ```
 
-```json
-[
-  { "id": 1, "task": "Buy groceries", "done": false }
-]
-```
+> Alternatively, use [jwt.io](https://jwt.io): algorithm `HS256`, secret `super-secret-jwt-key-at-least-32chars`, and adjust the `sub` field in the payload.
 
-### Authenticated Request with JWT
-
-Once `PGRST_JWT_SECRET` is set, PostgREST accepts requests authenticated with a JWT. The token is obtained from your auth provider (e.g., Keycloak) after a user logs in.
-
-A typical JWT payload for PostgREST looks like:
-
-```json
-{
-  "role": "my_app_4242",
-  "sub":  "alice",
-  "exp":  1999999999
-}
-```
-
-Pass it in the `Authorization` header:
+**Request as alice — sees only her todos:**
 
 ```bash
-TOKEN="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.\
-eyJyb2xlIjoibXlfYXBwXzQyNDIiLCJzdWIiOiJhbGljZSIsImV4cCI6MTk5OTk5OTk5OX0.\
-SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c"
+TOKEN_ALICE="<token generated for alice>"
 
 curl https://my-postgrest-api.osc-fr1.scalingo.io/todos \
-  -H "Authorization: Bearer $TOKEN"
+  -H "Authorization: Bearer $TOKEN_ALICE"
 ```
 
 ```json
 [
-  { "id": 1, "task": "Buy groceries", "done": false },
-  { "id": 2, "task": "Deploy PostgREST", "done": true }
+  { "id": 1, "user_id": "alice", "task": "Buy groceries", "done": false },
+  { "id": 2, "user_id": "alice", "task": "Read the docs", "done": false }
 ]
 ```
 
-> The token above is illustrative. In practice, your auth provider (Keycloak, Auth0, etc.) generates and signs it using the same secret as `PGRST_JWT_SECRET`.
+**Request as bob — sees only his todos:**
 
-For all available query operators (ordering, pagination, insertion, updates, and more), refer to the official [PostgREST documentation](https://postgrest.org/en/stable/references/api.html).
+```bash
+TOKEN_BOB="<token generated for bob>"
+
+curl https://my-postgrest-api.osc-fr1.scalingo.io/todos \
+  -H "Authorization: Bearer $TOKEN_BOB"
+```
+
+```json
+[
+  { "id": 3, "user_id": "bob", "task": "Deploy PostgREST", "done": true  },
+  { "id": 4, "user_id": "bob", "task": "Write tests",      "done": false }
+]
+```
+
+For all available query operators (filtering, ordering, pagination, inserting, updating...), refer to the official [PostgREST documentation](https://postgrest.org/en/stable/references/api.html).
 
 ---
 
