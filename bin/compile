@@ -5,7 +5,7 @@ BUILD_DIR="$1"
 CACHE_DIR="$2"
 ENV_DIR="${3:-}"
 
-POSTGREST_VERSION="${POSTGREST_VERSION:-10.1.2}"
+POSTGREST_VERSION="${POSTGREST_VERSION:-14.9}"
 POSTGREST_URL="https://github.com/PostgREST/postgrest/releases/download/v${POSTGREST_VERSION}/postgrest-v${POSTGREST_VERSION}-linux-static-x64.tar.xz"
 
 echo "-----> Installing PostgREST v${POSTGREST_VERSION}"
