@@ -42,7 +42,7 @@ scalingo --app my-postgrest-api env-set \
   PGRST_SERVER_PORT='$PORT'
 ```
 
-> **Note:** On Scalingo, use `$PORT` for `PGRST_SERVER_PORT` — the platform dynamically assigns the port via the `PORT` environment variable.
+> **Note:** On Scalingo, use `$PORT` for `PGRST_SERVER_PORT` - the platform dynamically assigns the port via the `PORT` environment variable.
 
 ### 6. Deploy
 
@@ -89,7 +89,7 @@ scalingo --app my-app env-set PGRST_DB_URI='$SCALINGO_POSTGRESQL_URL'
 
 The PostgreSQL user PostgREST uses for unauthenticated requests.
 
-> **Important:** On Scalingo, creating new PostgreSQL roles is not supported. You must use the user automatically provided by the PostgreSQL addon — its name is the username part of `SCALINGO_POSTGRESQL_URL`.
+> **Important:** On Scalingo, creating new PostgreSQL roles is not supported. You must use the user automatically provided by the PostgreSQL addon - its name is the username part of `SCALINGO_POSTGRESQL_URL`.
 
 ```bash
 # Retrieve the username from the connection URL
@@ -119,7 +119,7 @@ Used to verify JWT tokens issued by an external authentication provider ([Keyclo
 3. PostgREST verifies the token's signature using `PGRST_JWT_SECRET`.
 4. If valid, the request is processed. If the JWT contains a `role` claim, PostgREST uses it to switch the PostgreSQL role for that request.
 
-> **Note on Scalingo:** Since you cannot create new PostgreSQL roles, the `role` claim in the JWT should match your Scalingo-provided user (e.g., `my_app_4242`). Alternatively, omit the `role` claim — PostgREST will fall back to `PGRST_DB_ANON_ROLE`.
+> **Note on Scalingo:** Since you cannot create new PostgreSQL roles, the `role` claim in the JWT should match your Scalingo-provided user (e.g., `my_app_4242`). Alternatively, omit the `role` claim - PostgREST will fall back to `PGRST_DB_ANON_ROLE`.
 
 The secret must be **at least 32 characters**. For HS256 tokens, configure your auth provider to sign JWTs with this same shared secret. For RS256, use the RSA public key instead.
 
@@ -134,7 +134,7 @@ scalingo --app my-app env-set PGRST_JWT_SECRET='super-secret-jwt-key-at-least-32
 By default, the buildpack installs PostgREST **v14.9**. To use a different version:
 
 ```bash
-scalingo --app my-app env-set POSTGREST_VERSION='14.9'
+scalingo --app my-app env-set POSTGREST_VERSION='custom version'
 ```
 
 Check [PostgREST releases](https://github.com/PostgREST/postgrest/releases) for available versions.
@@ -143,9 +143,9 @@ Check [PostgREST releases](https://github.com/PostgREST/postgrest/releases) for 
 
 ## How the Buildpack Works
 
-1. **Detect** — The buildpack identifies itself as a PostgREST buildpack.
-2. **Compile** — Downloads the PostgREST static binary from GitHub releases and places it in `/app/bin/`.
-3. **Release** — Configures the default web process to run `/app/bin/postgrest`.
+1. **Detect** - The buildpack identifies itself as a PostgREST buildpack.
+2. **Compile** - Downloads the PostgREST static binary from GitHub releases and places it in `/app/bin/`.
+3. **Release** - Configures the default web process to run `/app/bin/postgrest`.
 
 ---
 
@@ -169,7 +169,7 @@ INSERT INTO todos (task, done) VALUES
   ('Deploy PostgREST', true);
 ```
 
-> The Scalingo user already has full access to the schema — no `GRANT` needed.
+> The Scalingo user already has full access to the schema - no `GRANT` needed.
 
 **Get all todos:**
 
@@ -184,7 +184,7 @@ curl https://my-postgrest-api.osc-fr1.scalingo.io/todos
 ]
 ```
 
-**Filter — only incomplete todos:**
+**Filter - only incomplete todos:**
 
 ```bash
 curl 'https://my-postgrest-api.osc-fr1.scalingo.io/todos?done=eq.false'
